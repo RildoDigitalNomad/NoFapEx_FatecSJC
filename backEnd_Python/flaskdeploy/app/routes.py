@@ -18,9 +18,9 @@ import json
 import random
 
 class PrivateResource(Resource):
-    @jwt_required
-    def get(self):
-        return {"meaning_of_life": 42}
+	@jwt_required
+	def get(self):
+		return {"meaning_of_life": 42}
 
 class VerificaTokenValida(Resource):
 	@jwt_required
@@ -61,106 +61,93 @@ ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 os.environ.update({'ROOT_PATH': ROOT_PATH})
 sys.path.append(os.path.join(ROOT_PATH, 'app'))
 
-LOG = logger.get_root_logger(os.environ.get(
-    'ROOT_LOGGER', 'root'), filename=os.path.join(ROOT_PATH, 'output.log'))
-
-
-
+LOG = logger.get_root_logger(os.environ.get('ROOT_LOGGER', 'root'), filename=os.path.join(ROOT_PATH, 'output.log'))
 
 
 @app.route('/logout')
 def logout():
-    logout_user()
-    return redirect(url_for('index'))
+	logout_user()
+	return redirect(url_for('index'))
 
 @app.route('/')
 @app.route('/index')
 @login_required
 def index():
-    posts = [
-        {
-            'author': {'username': 'John'},
-            'body': 'Beautiful day in Portland!'
-        },
-        {
-            'author': {'username': 'Susan'},
-            'body': 'The Avengers movie was so cool!'
-        }
-    ]
-    return render_template('index.html', title='Home', posts=posts)
+	posts = [{
+			'author': {'username': 'John'},
+			'body': 'Beautiful day in Portland!'
+		},
+	{
+		'author': {'username': 'Susan'},
+		'body': 'The Avengers movie was so cool!'
+	}]
+	return render_template('index.html', title='Home', posts=posts)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    print("ENTROU LOGIN!!!")
-    form = LoginForm()
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            accCheck = Conta.objects(userSetting__email = form.username.data)
-            if accCheck:
-                if check_password_hash(accCheck[0].userSetting.password, form.password.data):
-                    login_user(accCheck[0])
-                    print("Passou pelo login??? " , accCheck[0])
-                    next_page = request.args.get('next')
-                    if not next_page or url_parse(next_page).netloc != '':
-                        next_page = url_for('index')
-                    return redirect(next_page)
-                else:
-                    flash('Invalid Password')
-                    return redirect(url_for('login'))
-            else:
-                flash('Invalid Username')
-                return redirect(url_for('login'))
-            return render_template('login.html', form=form)
-        else:
-            req_data = request.get_json(force=True)
-            accCheck = Conta.objects(userSetting__email = req_data['username'])
-            if accCheck:
-                if check_password_hash(accCheck[0].userSetting.password , req_data['password']):
-                    expires = timedelta(minutes=2)
-                    token = create_access_token(req_data['username'], expires_delta=expires)
-                    refresh_token = create_refresh_token(identity = req_data['username'])
-                    return make_response(jsonify({
-                        'message': 'Usuario '+ req_data['username'] + ' logado.',
-                        'access_token': token,
-                        'refresh_token': refresh_token,
-                        'username' : accCheck[0].userSetting.username ,
-                        'email' : accCheck[0].userSetting.email
-                    })), 200
-                else:
-                    return make_response(jsonify({"message":"wrong credentials"})), 204
-            else:
-                return make_response(jsonify({"message":"wrong credentials"})), 204
-
-
-    return render_template('login.html', form=form)
+	form = LoginForm()
+	if current_user.is_authenticated:
+		print('Ta dando como se o usuario estivesse autenticado')
+		return redirect(url_for('index'))
+	if request.method == 'POST':
+		print('Blz, viu que veio um post no login')
+		if form.validate_on_submit():
+			print('Deu que o form validou? Oxi')
+			accCheck = Conta.objects(userSetting__email = form.username.data)
+			if accCheck:
+				if check_password_hash(accCheck[0].userSetting.password, form.password.data):
+					login_user(accCheck[0])
+					next_page = request.args.get('next')
+					if not next_page or url_parse(next_page).netloc != '':
+						next_page = url_for('index')
+					return redirect(next_page)
+				else:
+					flash('Invalid Password')
+					return redirect(url_for('login'))
+			else:
+				flash('Invalid Username')
+				return redirect(url_for('login'))
+			return render_template('login.html', form=form)
+		else:
+			req_data = request.get_json(force=True)
+			accCheck = Conta.objects(userSetting__email = req_data['username'])
+			if accCheck:
+				if check_password_hash(accCheck[0].userSetting.password , req_data['password']):
+					expires = timedelta(minutes=2)
+					token = create_access_token(req_data['username'], expires_delta=expires)
+					refresh_token = create_refresh_token(identity = req_data['username'])
+					return make_response(jsonify({
+						'message': 'Usuario '+ req_data['username'] + ' logado.',
+						'access_token': token,
+						'refresh_token': refresh_token,
+						'username' : accCheck[0].userSetting.username ,
+						'email' : accCheck[0].userSetting.email
+					})), 200
+				else:
+					return make_response(jsonify({"message":"wrong credentials"})), 204
+			else:
+				return make_response(jsonify({"message":"wrong credentials"})), 204
+	return render_template('login.html', form=form)
 
 @app.errorhandler(404)
 def not_found(error):
-    """ error handler """
-    LOG.error(error)
-    return make_response(jsonify({'error': 'Not found'}), 404)
+	""" error handler """
+	LOG.error(error)
+	return make_response(jsonify({'error': 'Not found'}), 404)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
-    form = RegistrationForm()
-    if form.validate_on_submit():
-
-        # -------------
-        hashpass2 = generate_password_hash(form.password.data)
-        newUserSetting = User_Setting(form.username.data,form.email.data,hashpass2)
-        newAcc = Conta( datetime.now() , userSetting = newUserSetting ).save()
-        print(newAcc)
-        print(newAcc.userSetting.username)
-        print(newAcc.devices)
-
-        login_user(newAcc)
-        flash('Congratulations, you are now a registered user!')
-        return redirect(url_for('login'))
-    return render_template('register.html', title='Register', form=form)
+	if current_user.is_authenticated:
+		return redirect(url_for('index'))
+	form = RegistrationForm()
+	if form.validate_on_submit():
+		hashpass2 = generate_password_hash(form.password.data)
+		newUserSetting = User_Setting(form.username.data,form.email.data,hashpass2)
+		newAcc = Conta( datetime.now() , userSetting = newUserSetting ).save()
+		login_user(newAcc)
+		flash('Congratulations, you are now a registered user!')
+		return redirect(url_for('login'))
+	return render_template('register.html', title='Register', form=form)
 
 
 @app.route('/getDeviceSettingOLD' , methods=['GET', 'POST'])
